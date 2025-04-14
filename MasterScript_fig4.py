@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 
 def simulate_subject(sub, v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind):
     """Produces the voxel pattern for one simulation for one parameter combination of one paradigm"""
+    # print("simulating subject")
     out = simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N)
     pattern = (out['pattern'].T + np.random.randn(v, len(j)) * noise).T
     v = pattern.shape[1]
@@ -40,13 +41,15 @@ def produce_statistics_one_simulation(paradigm, model_type, sigma, a, b, n_jobs,
         for sub in range(sub_num)
     )
 
-    y = {sub: results[sub] for sub in range(sub_num)}
+
+    y = np.array([results[sub] for sub in range(sub_num)])
 
     return produce_slopes(y, 1)
 
 def produce_confidence_intervals(paradigm, model_type, sigma, a, b, n_jobs, n_simulations):
     """Produces a dictionary of whether a data feature increases, decreases, or does not change significantly for the average of n_simulations simulations
     for one parameter combinations"""
+    print("done one simulation")
 
     slopes = Parallel(n_jobs=n_jobs)(
         delayed(produce_statistics_one_simulation)(paradigm, model_type, sigma, a, b, n_jobs, n_simulations)
@@ -110,6 +113,8 @@ def producing_fig_4(parameters, models, paradigm, n_jobs, n_simulations):
                 fig_4[row][col] = 'white'
             else:
                 fig_4[row][col] = 'any'
+
+    print(fig_4)
     
     #Turns figure into colour-coded diagram
     x = np.zeros(fig_4.shape)
@@ -133,9 +138,9 @@ parameters = {
 }
 
 good_spread_parameters = {
-    'sigma' : [0.1, 2, 11],
+    'sigma' : [0.1, 0.9, 11],
     'a' : [0.1, 0.5, 0.9],
-    'b' : [0.1, 1.5]
+    'b' : [0.1, 0.7, 1.5]
 }
 
 actual_parameters = {
@@ -165,8 +170,8 @@ models = {
     'remote attraction' : 12
 }
 
-n_jobs = 3 #Number of parallel jobs
-n_simulations = 3 #Number of simulations per parameter combination
+n_jobs = 5 #Number of parallel jobs
+n_simulations = 50 #Number of simulations per parameter combination
 
-producing_fig_4(parameters, models, 'face', n_jobs, n_simulations)
+producing_fig_4(good_spread_parameters, models, 'face', n_jobs, n_simulations)
 #n_simulations is the number of simulations for each parameter combination. 
