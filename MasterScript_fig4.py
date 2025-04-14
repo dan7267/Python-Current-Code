@@ -62,6 +62,9 @@ def produce_confidence_intervals(paradigm, model_type, sigma, a, b, n_jobs, n_si
 
     results_dict = {key: 3 if x[0] < 0 and x[1] < 0 else 1 if x[0] > 0 and x[1] > 0 else 2 if x[0] <0 < x[1] else 4
                     for key, x in zip(['AM', 'WC', 'BC', 'CP', 'AMS', 'AMA'], mega_sci.reshape(-1, 2))}
+    #3 means CI below zero so decreasing
+    #1 means CI above zero so increasing
+    #2 means CI overlaps zero so flat
     return [
         results_dict['AM'], results_dict['WC'], results_dict['BC'],
         results_dict['CP'], results_dict['AMS'], results_dict['AMA']

@@ -76,6 +76,9 @@ def produce_basic_statistics(y, plag):
         cond1_p2_corr = (np.corrcoef(cond1_p[1].T, rowvar=False)+np.corrcoef(cond2_p[1].T, rowvar=False)) / 2
         wtc2[sub, :] = np.mean(np.mean(cond1_p2_corr, axis=0))
 
+        #Only difference between matlab and python corr functions is
+        #MATLAB uses columns as variables whereas NumPy uses rows. Not applicable for wtc
+
         pp1 = np.corrcoef(cond1_p[0].T, cond2_p[0].T, rowvar=False)
         pp11 = (cond1_p[0].T).shape[1]
         pp1 = pp1[:pp11, pp11:]
@@ -148,3 +151,24 @@ def produce_slopes(y, pflag):
     slopes = [np.mean(slopes_dict[key]) for key in slopes_dict]
 
     return slopes
+
+y = np.array([[[-0.9969, -1.3622],
+         [ 0.7768, -1.1933],
+         [ 0.8446, -0.3450],
+         [ 0.1953, -0.0743],
+         [-0.8318,  1.1681],
+         [-0.3868,  2.1993],
+         [ 2.4177, -0.5848],
+         [ 0.3025,  1.4126]],
+
+        [[-0.5642, -1.4456],
+         [-0.8783,  1.2357],
+         [ 0.1728, -0.6139],
+         [ 0.6109,  0.1852],
+         [ 0.7538, -1.7449],
+         [ 1.7639,  0.8480],
+         [ 0.6495, -2.4907],
+         [-1.4072, -0.2315]]])
+
+print(produce_basic_statistics(y, 1))
+#MATLAB produces identical results
