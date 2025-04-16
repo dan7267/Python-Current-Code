@@ -25,7 +25,7 @@ def simulate_subject(sub, v, X, j, cond1, cond2, a, b, sigma, model_type, reset_
         cond2_p = {1: pattern[ind['cond2_p1'], :v], 2: pattern[ind['cond2_p3'], :v]}
     return np.vstack([cond1_p[1], cond1_p[2], cond2_p[1], cond2_p[2]])
 
-def produce_statistics_one_simulation(paradigm, model_type, sigma, a, b, n_jobs, n_simulations):
+def produce_slopes_one_simulation(paradigm, model_type, sigma, a, b, n_jobs, n_simulations):
     """Produces the slope of each data feature for one parameter combination for one simulation"""
     v, X = 200, np.pi
     cond1, cond2 = X/4, 3*X/4
@@ -41,7 +41,6 @@ def produce_statistics_one_simulation(paradigm, model_type, sigma, a, b, n_jobs,
         for sub in range(sub_num)
     )
 
-
     y = np.array([results[sub] for sub in range(sub_num)])
 
     return produce_slopes(y, 1)
@@ -52,7 +51,7 @@ def produce_confidence_intervals(paradigm, model_type, sigma, a, b, n_jobs, n_si
     print("done one simulation")
 
     slopes = Parallel(n_jobs=n_jobs)(
-        delayed(produce_statistics_one_simulation)(paradigm, model_type, sigma, a, b, n_jobs, n_simulations)
+        delayed(produce_slopes_one_simulation)(paradigm, model_type, sigma, a, b, n_jobs, n_simulations)
         for _ in range(n_simulations)
     )
     
@@ -63,8 +62,13 @@ def produce_confidence_intervals(paradigm, model_type, sigma, a, b, n_jobs, n_si
     t_critical = sp.stats.t.ppf(0.995, df=n_simulations-1)
     mega_sci = np.column_stack([means - t_critical * sems, means + t_critical * sems]).flatten()
 
-    results_dict = {key: 3 if x[0] < 0 and x[1] < 0 else 1 if x[0] > 0 and x[1] > 0 else 2 if x[0] <0 < x[1] else 4
-                    for key, x in zip(['AM', 'WC', 'BC', 'CP', 'AMS', 'AMA'], mega_sci.reshape(-1, 2))}
+    results_dict = {
+        key: 3 if x[0] < 0 and x[1] < 0 else 
+             1 if x[0] > 0 and x[1] > 0 else 
+             2 if x[0] <0 < x[1] else 
+             4
+        for key, x in zip(['AM', 'WC', 'BC', 'CP', 'AMS', 'AMA'], mega_sci.reshape(-1, 2))
+        }
     #3 means CI below zero so decreasing
     #1 means CI above zero so increasing
     #2 means CI overlaps zero so flat
