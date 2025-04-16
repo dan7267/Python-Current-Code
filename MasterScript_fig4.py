@@ -46,7 +46,7 @@ def produce_slopes_one_simulation(paradigm, model_type, sigma, a, b, n_jobs, n_s
 def produce_confidence_intervals(paradigm, model_type, sigma, a, b, n_jobs, n_simulations):
     """Produces a dictionary of whether a data feature increases, decreases, or does not change significantly for the average of n_simulations simulations
     for one parameter combinations"""
-    print("done one simulation")
+    print("done one simulation set")
 
     slopes = Parallel(n_jobs=n_jobs)(
         delayed(produce_slopes_one_simulation)(paradigm, model_type, sigma, a, b, n_jobs, n_simulations)

@@ -10,69 +10,69 @@ np.set_printoptions(threshold=sys.maxsize)
 from joblib import Parallel, delayed
 n_jobs = 5
 
-def produce_statistics_one_simulation(paradigm, model_type, sigma, a, b):
-    """Produces the slopes for one simulation at one parameter combination"""
-    v = 200
-    X = np.pi #Stimulus Dimension
-    cond1 = 1/4*X #Condition 1 of paradigm
-    cond2 = 3/4*X #Condition 2 of paradigm
-    sub_num = 18 #The number of subjects. Keep at 18
-    noise = 0.03 
+def simulate_subject(sub, v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind):
+    """Produces the voxel pattern for one simulation for one parameter combination of one paradigm"""
+    out = simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N)
+    pattern = (out['pattern'].T + np.random.randn(v, len(j)) * noise).T
+    v = pattern.shape[1]
+    if paradigm == 'face':
+        cond1_p = {1: pattern[::4, :v], 2: pattern[1::4, :v]}
+        cond2_p = {1: pattern[2::4, :v], 2: pattern[3::4, :v]}
+    elif paradigm == 'grating':
+        cond1_p = {1: pattern[ind['cond1_p1'], :v], 2: pattern[ind['cond1_p3'], :v]}
+        cond2_p = {1: pattern[ind['cond2_p1'], :v], 2: pattern[ind['cond2_p3'], :v]}
+    return np.vstack([cond1_p[1], cond1_p[2], cond2_p[1], cond2_p[2]])
+
+def produce_slopes_one_simulation(paradigm, model_type, sigma, a, b, n_jobs):
+    """Produces the slope of each data feature for one parameter combination for one simulation"""
+    v, X = 200, np.pi
+    cond1, cond2 = X/4, 3*X/4
+    sub_num = 18
+    noise = 0.03
     N = 8
-    y = {}
-    j, ind, reset_after, _ = paradigm_setting(paradigm, cond1, cond2) #We don't use winning_params, we use sigma, a, b
-    for sub in range(sub_num):
-        out = simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N)
-        pattern = (out['pattern'].T + np.random.randn(v, len(j)) * noise).T
-        v = pattern.shape[1]
-        if paradigm == 'face':
-            #print("Simulating face data")
-            #The core function that generates the initial and repeated patterns - outputs: [presentation x voxel] matrix
-            #Now group trials according to conditions and presentations
-            cond1_p = {
-                1: pattern[::4, :v],  # Rows 1:4:end (0-based index)
-                2: pattern[1::4, :v]  # Rows 2:4:end (0-based index)
-            }
-            cond2_p = {
-                1: pattern[2::4, :v],  # Rows 3:4:end (0-based index)
-                2: pattern[3::4, :v]  # Rows 4:4:end (0-based index)
-            }
-        elif paradigm == 'grating':
-            #print("Simulating grating data")
-            cond1_p = {
-                1: pattern[ind['cond1_p1'], :v],  # Using the indices for condition 1, part 1
-                2:pattern[ind['cond1_p3'], :v]  # Using the indices for condition 1, part 2
-            }
-            cond2_p = {
-                1: pattern[ind['cond2_p1'], :v],  # Using the indices for condition 2, part 1
-                2: pattern[ind['cond2_p3'], :v]  # Using the indices for condition 2, part 2
-            }
-        y[sub] = np.vstack([cond1_p[1], cond1_p[2], cond2_p[1], cond2_p[2]])
-    return produce_slopes(y,1)
+
+    j, ind, reset_after, _ = paradigm_setting(paradigm, cond1, cond2)
+    
+    results = Parallel(n_jobs=n_jobs)(
+        delayed(simulate_subject)(sub, v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind)
+        for sub in range(sub_num)
+    )
+
+    y = np.array([results[sub] for sub in range(sub_num)])
+
+    return produce_slopes(y, 1)
     
 def produce_confidence_intervals(paradigm, model_type, sigma, a, b, n_jobs, n_simulations):
     """Produces a dictionary of whether a data feature increases, decreases, or does not change significantly for the average of n_simulations simulations
     for one parameter combinations"""
+    print("done one simulation set")
 
     slopes = Parallel(n_jobs=n_jobs)(
-        delayed(produce_statistics_one_simulation)(paradigm, model_type, sigma, a, b)
+        delayed(produce_slopes_one_simulation)(paradigm, model_type, sigma, a, b, n_jobs)
         for _ in range(n_simulations)
     )
     
     #Finding overall confidence interval for all simulations
     slopes = np.array(slopes)
-    print(slopes)
     means, stds = slopes.mean(axis=0), slopes.std(axis=0)
     sems = stds / np.sqrt(n_simulations)
     t_critical = sp.stats.t.ppf(0.995, df=n_simulations-1)
     mega_sci = np.column_stack([means - t_critical * sems, means + t_critical * sems]).flatten()
 
-    results_dict = {key: 3 if x[0] < 0 and x[1] < 0 else 1 if x[0] > 0 and x[1] > 0 else 2 if x[0] <0 < x[1] else 4
-                    for key, x in zip(['AM', 'WC', 'BC', 'CP', 'AMS', 'AMA'], mega_sci.reshape(-1, 2))}
+    results_dict = {
+        key: 3 if x[0] < 0 and x[1] < 0 else 
+             1 if x[0] > 0 and x[1] > 0 else 
+             2 if x[0] <0 < x[1] else 
+             4
+        for key, x in zip(['AM', 'WC', 'BC', 'CP', 'AMS', 'AMA'], mega_sci.reshape(-1, 2))
+        }
+    #3 means CI below zero so decreasing
+    #1 means CI above zero so increasing
+    #2 means CI overlaps zero so flat
     return results_dict
 
-def run_simulation(model, parameters, paradigm, experimental_results, n_simulations, n_jobs):
-    """Returns key data structures and values to produce the final figure, doing so with multiple simulations at each parameter combination"""
+def produce_model_key_variables(model, parameters, paradigm, experimental_results, n_simulations, n_jobs):
+    """Returns key data structures and values to produce the final figure, doing so with multiple simulations at each parameter combination. For one model"""
     num_combinations = np.prod([len(v) for v in parameters.values()])
     results_comparison = np.zeros((num_combinations, 6))
     max_same, parameters_of_max = [], []
@@ -86,7 +86,6 @@ def run_simulation(model, parameters, paradigm, experimental_results, n_simulati
     def process_combination(index, combination):
         sigma, a, b = combination
         results_dict = produce_confidence_intervals(paradigm, model, sigma, a, b, n_jobs, n_simulations)
-        print(results_dict)
         results_match = [1 if results_dict[feature] == experimental_results[feature] else 0 for feature in results_dict]
         return index, results_match
 
@@ -105,18 +104,18 @@ def run_simulation(model, parameters, paradigm, experimental_results, n_simulati
         elif current_max == no_max_same:
             max_same.append(results_match)
             parameters_of_max.append(parameter_indices[parameter_list[index]])
-
-    return {
+    key_variables = {
         'model_comparison' : results_comparison,
         'max_same' : np.unique(max_same, axis=0),
         'no_max_same' : no_max_same,
         'parameters_of_max' : parameters_of_max
     }
+    return key_variables
 
 def producing_fig_5(parameters, paradigm, n_simulations, n_jobs):
     """Outputs the final figure as well as all the possible maximum results"""
     experimental_results = experimental_face_results if paradigm == 'face' else experimental_grating_results
-    fig_5_dict = {model: run_simulation(model, parameters, paradigm, experimental_results, n_simulations, n_jobs) for model in range(1, 13)}
+    fig_5_dict = {model: produce_model_key_variables(model, parameters, paradigm, experimental_results, n_simulations, n_jobs) for model in range(1, 13)}
     fig_5_array = np.zeros((6, 12))
     fig_5_sets = []
     for model, model_data in fig_5_dict.items():
@@ -127,8 +126,8 @@ def producing_fig_5(parameters, paradigm, n_simulations, n_jobs):
     return fig_5_dict
 
 parameters = {
-    'sigma' : [0.2, 1.0],
-    'a' : [0.2, 0.7],
+    'sigma' : [0.2],
+    'a' : [0.2],
     'b' : [0.2, 1.5]
 }
 
@@ -190,4 +189,4 @@ experimental_grating_results = {
 
 n_simulations = 2
 
-producing_fig_5(good_spread_parameters, 'face', n_simulations, n_jobs)
+producing_fig_5(parameters, 'face', n_simulations, n_jobs)
