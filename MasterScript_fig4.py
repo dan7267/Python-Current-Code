@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 
 def simulate_subject(sub, v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind):
     """Produces the voxel pattern for one simulation for one parameter combination of one paradigm"""
-    # print("simulating subject")
     out = simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N)
     pattern = (out['pattern'].T + np.random.randn(v, len(j)) * noise).T
     v = pattern.shape[1]
@@ -32,7 +31,6 @@ def produce_slopes_one_simulation(paradigm, model_type, sigma, a, b, n_jobs, n_s
     sub_num = 18
     noise = 0.03
     N = 8
-    y = {}
 
     j, ind, reset_after, _ = paradigm_setting(paradigm, cond1, cond2)
     
@@ -105,7 +103,13 @@ def producing_fig_4(parameters, models, paradigm, n_jobs, n_simulations):
     for row in range(6):
         for col in range(12):
             unique_elements = set(fig_4[row][col])
-            if unique_elements == {3}:
+            if 4 in unique_elements:
+                print("invalid confidence interval at")
+                print("row")
+                print(row)
+                print("column")
+                print(col)
+            elif unique_elements == {3}:
                 fig_4[row][col] = 'blue'
             elif unique_elements == {1}:
                 fig_4[row][col] = 'red'

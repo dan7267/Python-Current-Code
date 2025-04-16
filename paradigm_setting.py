@@ -28,10 +28,10 @@ def paradigm_setting(paradigm, cond1, cond2):
 
         condition = np.tile([1, 1, 0, 0], (1, 8))
         presentation = np.tile([1, 2], (1, 16))
-        cond1_p1 = np.where((condition == 1) & (presentation == 1))[0]
-        cond1_p2 = np.where((condition == 1) & (presentation == 2))[0]
-        cond2_p1 = np.where((condition == 0) & (presentation == 1))[0]
-        cond2_p2 = np.where((condition == 0) & (presentation == 2))[0]
+        cond1_p1 = np.where((condition == 1) & (presentation == 1))[1]
+        cond1_p2 = np.where((condition == 1) & (presentation == 2))[1]
+        cond2_p1 = np.where((condition == 0) & (presentation == 1))[1]
+        cond2_p2 = np.where((condition == 0) & (presentation == 2))[1]
 
         # Returning indices in a dictionary
         ind = {
@@ -62,12 +62,12 @@ def paradigm_setting(paradigm, cond1, cond2):
 
         condition = np.tile([1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1], 4)
         presentation = np.tile([1, 1, 2, 2, 3, 3], 8)
-        cond1_p1 = np.where((condition==1) & (presentation == 1))[0]
-        cond1_p2 = np.where((condition==1) & (presentation == 2))[0]
-        cond1_p3 = np.where((condition==1) & (presentation == 3))[0]
-        cond2_p1 = np.where((condition==0) & (presentation == 1))[0]
-        cond2_p2 = np.where((condition==0) & (presentation == 2))[0]
-        cond2_p3 = np.where((condition==0) & (presentation == 3))[0]
+        cond1_p1 = np.where((condition==1) & (presentation == 1))[1]
+        cond1_p2 = np.where((condition==1) & (presentation == 2))[1]
+        cond1_p3 = np.where((condition==1) & (presentation == 3))[1]
+        cond2_p1 = np.where((condition==0) & (presentation == 1))[1]
+        cond2_p2 = np.where((condition==0) & (presentation == 2))[1]
+        cond2_p3 = np.where((condition==0) & (presentation == 3))[1]
 
         ind = {
             'cond1_p1': cond1_p1,
