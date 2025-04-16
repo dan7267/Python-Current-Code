@@ -170,7 +170,7 @@ models = {
     'remote attraction' : 12
 }
 
-n_jobs = 5 #Number of parallel jobs
+n_jobs = 4 #Number of parallel jobs
 n_simulations = 50 #Number of simulations per parameter combination
 
 producing_fig_4(good_spread_parameters, models, 'face', n_jobs, n_simulations)
