@@ -4,7 +4,7 @@ from paradigm_setting import paradigm_setting
 
 np.set_printoptions(threshold=np.inf)
 
-def simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N):
+def simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, sub_num):
     """
     Parameters
     ----------
@@ -46,21 +46,23 @@ def simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_af
     tuning_curves_peaks = np.array([0, X/8, X*2/8, X*3/8, X*4/8, X*5/8, X*6/8, X*7/8])
     precomputed_gaussians = np.array([gaussian(x, u, sigma, paradigm) for u in tuning_curves_peaks])
     precomputed_gaussians /= np.max(precomputed_gaussians, axis=1, keepdims=True)
-    pattern = np.zeros((nt, v))
-    activity = np.zeros((nt, v, N)) 
-    rep = np.zeros((nt, v, N, res)) 
+    pattern = np.zeros((sub_num, nt, v))
+    # activity = np.zeros((nt, v, N)) 
+    # rep = np.zeros((nt, v, N, res)) 
 
     #Randomly assign preferred tuning curves to neurons
-    u_vals = np.random.choice(tuning_curves_peaks, size=(v,N), replace=True) #200x8
+    u_vals = np.random.choice(tuning_curves_peaks, size=(sub_num, v,N), replace=True) #200x8
+    # u_vals = np.array([0, X/8, 2*X/8, X/8, 0, 5*X/8, 7*X/8, 4*X/8])
+    # u_vals = np.tile(u_vals[None, None, :], (sub_num, v,1))
     u_indices = np.searchsorted(tuning_curves_peaks, u_vals) #This maps the randomly selected values back to their positions in the original array
     init = precomputed_gaussians[u_indices] #init is 1 x 8 x 20
     
     #Create reset mask (this is True for every interval of reset after)
     reset_mask = np.mod(np.arange(nt), reset_after) == 0
-    c = np.ones((nt, v, N)) #Adaptation factor for every trial, voxel, and neuron
+    c = np.ones((sub_num, nt, v, N)) #Adaptation factor for every trial, voxel, and neuron
 
     #Compute adaptation for all trials at once using broadcasting
-    d = u_vals[None, :, :] - np.array(j)[:, None, None]
+    d = u_vals[:, None, :, :] - np.array(j)[None, :, None, None]
     if paradigm == 'grating':
         d = np.minimum(np.abs(d), X-np.abs(d))
 
@@ -79,42 +81,44 @@ def simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_af
 
     shifting_models = {7, 8, 9, 10, 11, 12}  # Models that involve shifting
     if model_type in {1, 4}:
-        e = a * np.ones((nt, v, N))
+        e = a * np.ones_like(d)
     elif model_type in scaling_factors:
         e = scaling_factors[model_type]
 
     num_blocks = nt // reset_after
-    e_reshaped = e.reshape(num_blocks, reset_after, v, N)
+    e_reshaped = e.reshape(sub_num, num_blocks, reset_after, v, N)
     e_modified = np.ones_like(e_reshaped)
-    e_modified[:, 1:, :, :] = e_reshaped[:, 1:, :, :]
-    transformed_array = np.cumprod(e_modified, axis=1)
-    transformed_array = transformed_array.reshape(nt, v, N)
+    e_modified[:, :, 1:, :, :] = e_reshaped[:, :, 1:, :, :]
+    transformed_array = np.cumprod(e_modified, axis=2)
+    transformed_array = transformed_array.reshape(sub_num, nt, v, N)
 
 
     if model_type in {4, 5, 6}:
-        temp = gaussian(x[None, None, None, :], u_vals[None, :, :, None], transformed_array[..., None] * sigma, paradigm)
+        temp = gaussian(x[None, None, None, None, :], u_vals[:, None, :, :, None], transformed_array[..., None] * sigma, paradigm)
         temp /= np.max(temp, axis=-1, keepdims=True)
     elif model_type in shifting_models:  # Shift-based models
         shift_direction = 1 if model_type in {7, 8, 9} else -1  # Repulsive (+) vs. Attractive (-)
         shift_amount = transformed_array * X/2
-        shift_amount[::reset_after, :, :] = 1
-        temp = gaussian(x[None, None, None, :], u_vals[None, :, :, None] + shift_direction * shift_amount[..., None], sigma, paradigm)
+        shift_amount[:, ::reset_after, :, :] = 1
+        temp = gaussian(x[None, None, None, None, :], u_vals[:, None, :, :, None] + shift_direction * shift_amount[..., None], sigma, paradigm)
         temp /= np.max(temp, axis=-1, keepdims=True)
     elif model_type in {1, 2, 3}:  # Scaling models (1, 2, 3)
-        temp = transformed_array[..., None] * init[None, :, :, :]
+        temp = transformed_array[..., None] * init[:, None, :, :, :]
     rep = temp
-    rep[::reset_after, :, :, :] = init
+    rep[:, ::reset_after, :, :, :] = init[:, None, :, :, :] #unsure about this line
 
 
     cond_indices = (int(cond1 / dt - 1), int(cond2 / dt - 1))
 
-    activity = np.take(rep, cond_indices[0], axis=-1) * (np.array(j)[:, None, None] == cond1) + \
-               np.take(rep, cond_indices[1], axis=-1) * (np.array(j)[:, None, None] == cond2)
-    
-    
-    pattern = np.mean(activity, axis=2)
+    cond1_mask = (np.array(j) == cond1)[None, :, None, None]
+    cond2_mask = (np.array(j) == cond2)[None, :, None, None]
 
-    
+    act1 = np.take(rep, cond_indices[0], axis=-1)
+    act2 = np.take(rep, cond_indices[1], axis=-1)
+
+    activity = act1 * cond1_mask + act2 * cond2_mask
+    pattern = np.mean(activity, axis=3)
+
     return {
         'pattern': pattern,
         'rep': rep,
@@ -134,3 +138,16 @@ def non_circular_g(x, sigma, u):
 def circular_g(x, u, sigma):
     c = 1 / (2*np.pi*sp.special.i0(sigma))
     return c * np.exp(sigma * np.cos(x-u))
+
+# v = 1
+# X = np.pi
+# cond1, cond2 = 1/4*X, 3/4*X
+# a = 0.1
+# b = 0.1
+# sigma = 0.1
+# model_type = 1
+# paradigm = 'face'
+# N = 8
+# sub_num = 2
+# j, ind, reset_after, winning_params = paradigm_setting('face', cond1, cond2)
+# print(simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, sub_num))
