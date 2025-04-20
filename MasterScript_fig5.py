@@ -92,6 +92,7 @@ def produce_model_key_variables(model, parameters, paradigm, experimental_result
     parallel_results = Parallel(n_jobs)(
         delayed(process_combination)(i, combination) for i, combination in enumerate(parameter_list)
     )
+    #For one model, produces an array for each parameter combo 
 
     for index, results_match in parallel_results:
         results_comparison[index] = results_match
@@ -123,18 +124,19 @@ def producing_fig_5(parameters, paradigm, n_simulations, n_jobs):
         for i, max_match in enumerate(model_data['max_same'][0]):
             fig_5_array[i, model - 1] = max_match
     print(fig_5_array, fig_5_sets)
+    print(fig_5_dict)
     return fig_5_dict
 
 parameters = {
     'sigma' : [0.2],
-    'a' : [0.2],
-    'b' : [0.2, 1.5]
+    'a' : [0.7],
+    'b' : [0.2]
 }
 
 good_spread_parameters = {
-    'sigma' : [0.1, 2, 11],
-    'a' : [0.1, 0.5, 0.9],
-    'b' : [0.1, 0.7, 1.5]
+    'sigma' : [0.1, 0.3, 0.7, 5, 11],
+    'a' : [0.1, 0.4, 0.7, 0.9],
+    'b' : [0.1, 0.5, 0.9, 1.5]
 }
 
 actual_parameters = {
@@ -187,6 +189,6 @@ experimental_grating_results = {
     'AMA' : 1
 }
 
-n_simulations = 2
+n_simulations = 50
 
-producing_fig_5(parameters, 'face', n_simulations, n_jobs)
+producing_fig_5(good_spread_parameters, 'face', n_simulations, n_jobs)
