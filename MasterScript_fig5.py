@@ -10,20 +10,35 @@ np.set_printoptions(threshold=sys.maxsize)
 from joblib import Parallel, delayed
 import os
 print("Number of CPU cores:", os.cpu_count())
-n_jobs = 6
+n_jobs = 4
 
-def simulate_subject(sub, v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind):
+def simulate_subject(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind, sub_num):
     """Produces the voxel pattern for one simulation for one parameter combination of one paradigm"""
-    out = simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N)
-    pattern = (out['pattern'].T + np.random.randn(v, len(j)) * noise).T
+    out = simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, sub_num)
+    # pattern = (out['pattern'].T + np.random.randn(v, len(j), sub_num) * noise).T
+    pattern = (out['pattern'].T + np.random.randn(v, len(j), sub_num) * noise).T
     v = pattern.shape[1]
-    if paradigm == 'face':
-        cond1_p = {1: pattern[::4, :v], 2: pattern[1::4, :v]}
-        cond2_p = {1: pattern[2::4, :v], 2: pattern[3::4, :v]}
-    elif paradigm == 'grating':
-        cond1_p = {1: pattern[ind['cond1_p1'], :v], 2: pattern[ind['cond1_p3'], :v]}
-        cond2_p = {1: pattern[ind['cond2_p1'], :v], 2: pattern[ind['cond2_p3'], :v]}
-    return np.vstack([cond1_p[1], cond1_p[2], cond2_p[1], cond2_p[2]])
+
+
+    inds = {
+        'cond1_p1': np.arange(0, pattern.shape[1], 4),  # 0, 4, 8, ...
+        'cond1_p2': np.arange(1, pattern.shape[1], 4),  # 1, 5, 9, ...
+        'cond2_p1': np.arange(2, pattern.shape[1], 4),  # 2, 6, 10, ...
+        'cond2_p2': np.arange(3, pattern.shape[1], 4)   # 3, 7, 11, ...
+    }
+
+    # Stack the four condition slices along a new axis → shape (18, 4, 8, 200)
+    pattern_split = np.stack([
+        pattern[:, inds['cond1_p1'], :],
+        pattern[:, inds['cond1_p2'], :],
+        pattern[:, inds['cond2_p1'], :],
+        pattern[:, inds['cond2_p2'], :]
+    ], axis=1)
+
+    # Reshape to (18, 32, 200) by merging the 4 and 8 dims → 4×8 = 32
+    pattern_out = pattern_split.reshape(pattern.shape[0], 32, pattern.shape[2])
+
+    return pattern_out
 
 def produce_slopes_one_simulation(paradigm, model_type, sigma, a, b, n_jobs):
     """Produces the slope of each data feature for one parameter combination for one simulation"""
@@ -34,13 +49,13 @@ def produce_slopes_one_simulation(paradigm, model_type, sigma, a, b, n_jobs):
     N = 8
 
     j, ind, reset_after, _ = paradigm_setting(paradigm, cond1, cond2)
-    
-    results = Parallel(n_jobs=n_jobs)(
-        delayed(simulate_subject)(sub, v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind)
-        for sub in range(sub_num)
-    )
-
-    y = np.array([results[sub] for sub in range(sub_num)])
+    y = simulate_subject(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind, sub_num)
+    # results = Parallel(n_jobs=n_jobs)(
+    #     delayed(simulate_subject)(sub, v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind, sub_num)
+    #     for sub in range(sub_num)
+    # )
+    #y is an 18 x 32 x 200
+    # y = np.array([results[sub] for sub in range(sub_num)])
 
     return produce_slopes(y, 1)
     
@@ -132,7 +147,11 @@ def producing_fig_5(parameters, paradigm, n_simulations, n_jobs):
 parameters = {
     'sigma' : [0.2],
     'a' : [0.7],
+<<<<<<< HEAD
+    'b' : [0.2, 1.5]
+=======
     'b' : [0.2]
+>>>>>>> d83f6e8874ca7e5c1ce983432dd88572e59c8151
 }
 
 good_spread_parameters = {
@@ -191,6 +210,18 @@ experimental_grating_results = {
     'AMA' : 1
 }
 
+<<<<<<< HEAD
 n_simulations = 20
+=======
+<<<<<<< HEAD
+n_simulations = 2
+=======
+<<<<<<< HEAD
+n_simulations = 50
+=======
+n_simulations = 20
+>>>>>>> 27b350a95b62b63133589867f2cc611c0f8f99bc
+>>>>>>> d83f6e8874ca7e5c1ce983432dd88572e59c8151
+>>>>>>> a0f33a40d51c85cf4e278e621e4e785af550d644
 
 producing_fig_5(good_spread_parameters, 'face', n_simulations, n_jobs)
