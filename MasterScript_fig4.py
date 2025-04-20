@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 def simulate_subject(sub, v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind):
     """Produces the voxel pattern for one simulation for one parameter combination of one paradigm"""
     out = simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N)
+    #out currently is 32x200 but we want to do this 18 times over. 
     pattern = (out['pattern'].T + np.random.randn(v, len(j)) * noise).T
     v = pattern.shape[1]
     if paradigm == 'face':
@@ -38,7 +39,7 @@ def produce_slopes_one_simulation(paradigm, model_type, sigma, a, b, n_jobs, n_s
         delayed(simulate_subject)(sub, v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind)
         for sub in range(sub_num)
     )
-
+    #results = 18 x 32 x 200
     y = np.array([results[sub] for sub in range(sub_num)])
 
     return produce_slopes(y, 1)
