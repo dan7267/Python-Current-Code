@@ -191,10 +191,6 @@ experimental_grating_results = {
     'AMA' : 1
 }
 
-<<<<<<< HEAD
-n_simulations = 50
-=======
 n_simulations = 20
->>>>>>> 27b350a95b62b63133589867f2cc611c0f8f99bc
 
 producing_fig_5(good_spread_parameters, 'face', n_simulations, n_jobs)
