@@ -8,7 +8,9 @@ from ExperimentalData import create_pattern
 from itertools import product
 np.set_printoptions(threshold=sys.maxsize)
 from joblib import Parallel, delayed
-n_jobs = 5
+import os
+print("Number of CPU cores:", os.cpu_count())
+n_jobs = 6
 
 def simulate_subject(sub, v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind):
     """Produces the voxel pattern for one simulation for one parameter combination of one paradigm"""
@@ -189,6 +191,10 @@ experimental_grating_results = {
     'AMA' : 1
 }
 
+<<<<<<< HEAD
 n_simulations = 50
+=======
+n_simulations = 20
+>>>>>>> 27b350a95b62b63133589867f2cc611c0f8f99bc
 
 producing_fig_5(good_spread_parameters, 'face', n_simulations, n_jobs)
