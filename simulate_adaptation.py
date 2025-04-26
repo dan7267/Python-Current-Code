@@ -42,27 +42,39 @@ def simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_af
     nt = len(j)
     res = 180
     dt = X/res
-    x = np.arange(dt, X + dt, dt)
-    tuning_curves_peaks = np.array([0, X/8, X*2/8, X*3/8, X*4/8, X*5/8, X*6/8, X*7/8])
-    precomputed_gaussians = np.array([gaussian(x, u, sigma, paradigm) for u in tuning_curves_peaks])
+    x = np.linspace(dt, X, res, dtype=np.float32)
+    tuning_curves_peaks = np.linspace(0, X * 7 / 8, 8, dtype=np.float32)
+    # tuning_curves_peaks = np.linspace(0, X*5/8, 8, dtype=np.float32)
+    # Precompute tuning curves
+    precomputed_gaussians = np.empty((8, res), dtype=np.float32)
+    for i, u in enumerate(tuning_curves_peaks):
+        precomputed_gaussians[i] = gaussian(x, u, sigma, paradigm)
     precomputed_gaussians /= np.max(precomputed_gaussians, axis=1, keepdims=True)
-    pattern = np.zeros((sub_num, nt, v))
+
+    pattern = np.empty((sub_num, nt, v), dtype=np.float32)
+
     # activity = np.zeros((nt, v, N)) 
     # rep = np.zeros((nt, v, N, res)) 
 
     #Randomly assign preferred tuning curves to neurons
-    u_vals = np.random.choice(tuning_curves_peaks, size=(sub_num, v,N), replace=True) #200x8
+
+
+    u_vals = np.random.choice(tuning_curves_peaks, size=(sub_num, v,N), replace=True).astype(np.float32) #200x8
+    
+    
+    
     # u_vals = np.array([0, X/8, 2*X/8, X/8, 0, 5*X/8, 7*X/8, 4*X/8])
     # u_vals = np.tile(u_vals[None, None, :], (sub_num, v,1))
+    # u_vals = u_vals.astype(np.float32)
     u_indices = np.searchsorted(tuning_curves_peaks, u_vals) #This maps the randomly selected values back to their positions in the original array
     init = precomputed_gaussians[u_indices] #init is 1 x 8 x 20
     
     #Create reset mask (this is True for every interval of reset after)
-    reset_mask = np.mod(np.arange(nt), reset_after) == 0
-    c = np.ones((sub_num, nt, v, N)) #Adaptation factor for every trial, voxel, and neuron
-
+    # reset_mask = np.mod(np.arange(nt), reset_after) == 0
+    # c = np.ones((sub_num, nt, v, N)) #Adaptation factor for every trial, voxel, and neuron
+    j_arr = np.asarray(j, dtype=np.float32)[None, :, None, None]
     #Compute adaptation for all trials at once using broadcasting
-    d = u_vals[:, None, :, :] - np.array(j)[None, :, None, None]
+    d = u_vals[:, None, :, :] - j_arr
     if paradigm == 'grating':
         d = np.minimum(np.abs(d), X-np.abs(d))
 
@@ -87,10 +99,9 @@ def simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_af
 
     num_blocks = nt // reset_after
     e_reshaped = e.reshape(sub_num, num_blocks, reset_after, v, N)
-    e_modified = np.ones_like(e_reshaped)
+    e_modified = np.ones_like(e_reshaped, dtype=np.float32)
     e_modified[:, :, 1:, :, :] = e_reshaped[:, :, 1:, :, :]
-    transformed_array = np.cumprod(e_modified, axis=2)
-    transformed_array = transformed_array.reshape(sub_num, nt, v, N)
+    transformed_array = np.cumprod(e_modified, axis=2).reshape(sub_num, nt, v, N)
 
 
     if model_type in {4, 5, 6}:
@@ -104,6 +115,7 @@ def simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_af
         temp /= np.max(temp, axis=-1, keepdims=True)
     elif model_type in {1, 2, 3}:  # Scaling models (1, 2, 3)
         temp = transformed_array[..., None] * init[:, None, :, :, :]
+    temp = temp.astype(np.float32)
     rep = temp
     rep[:, ::reset_after, :, :, :] = init[:, None, :, :, :] #unsure about this line
 
@@ -117,19 +129,15 @@ def simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_af
     act2 = np.take(rep, cond_indices[1], axis=-1)
 
     activity = act1 * cond1_mask + act2 * cond2_mask
-    pattern = np.mean(activity, axis=3)
+    np.mean(activity, axis=3, out=pattern)
 
-    return {
-        'pattern': pattern,
-        'rep': rep,
-        'activity': activity
-    }
+    return pattern
 
 def gaussian(x, u, sigma, paradigm):
     if paradigm == 'face':
-        return non_circular_g(x, sigma, u)
+        return non_circular_g(x, sigma, u).astype(np.float32)
     elif paradigm == 'grating':
-        return circular_g(2*x, 2*u, 1/sigma)
+        return circular_g(2*x, 2*u, 1/sigma).astype(np.float32)
     
 
 def non_circular_g(x, sigma, u):

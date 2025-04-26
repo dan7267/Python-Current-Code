@@ -15,7 +15,7 @@ def simulate_subject(sub, v, X, j, cond1, cond2, a, b, sigma, model_type, reset_
     """Produces the voxel pattern for one simulation for one parameter combination of one paradigm"""
     out = simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N)
     #out currently is 32x200 but we want to do this 18 times over. 
-    pattern = (out['pattern'].T + np.random.randn(v, len(j)) * noise).T
+    pattern = (out.T + np.random.randn(v, len(j)) * noise).T
     v = pattern.shape[1]
     if paradigm == 'face':
         cond1_p = {1: pattern[::4, :v], 2: pattern[1::4, :v]}

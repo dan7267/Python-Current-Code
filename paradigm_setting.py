@@ -60,8 +60,9 @@ def paradigm_setting(paradigm, cond1, cond2):
         cond2, cond1, cond2, cond1, cond2, cond1 
         ]
 
-        condition = np.tile([1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1], 4)
-        presentation = np.tile([1, 1, 2, 2, 3, 3], 8)
+        condition = np.tile([1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1], (1,4))
+        presentation = np.tile([1, 1, 2, 2, 3, 3], (1,8))
+        # print(np.where((condition==1) & (presentation == 1)))
         cond1_p1 = np.where((condition==1) & (presentation == 1))[1]
         cond1_p2 = np.where((condition==1) & (presentation == 2))[1]
         cond1_p3 = np.where((condition==1) & (presentation == 3))[1]
