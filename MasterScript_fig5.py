@@ -14,7 +14,8 @@ n_jobs = 3
 def simulate_subject(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind, sub_num):
     """Produces the voxel pattern for one simulation for one parameter combination of one paradigm"""
     all_pattern = []
-    batch_size=4
+    # batch_size=4
+    batch_size=3
     for i in range(0, sub_num, batch_size):
         current_batch_size = min(batch_size, sub_num - i)
         out = simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, current_batch_size)
@@ -43,13 +44,13 @@ def simulate_subject(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after
     # Concatenate all batches → shape: (sub_num, 32, voxel)
     return np.concatenate(all_pattern, axis=0)
 
-def produce_slopes_one_simulation(paradigm, model_type, sigma, a, b, n_jobs):
+def produce_slopes_one_simulation(paradigm, model_type, sigma, a, b, noise, n_jobs):
     """Produces the slope of each data feature for one parameter combination for one simulation"""
     # print("one simulation done")
     v, X = 200, np.pi
     cond1, cond2 = X/4, 3*X/4
     sub_num = 18
-    noise = 0.03
+    # noise = 0.03
     N = 8
 
     j, ind, reset_after, _ = paradigm_setting(paradigm, cond1, cond2)
@@ -62,13 +63,13 @@ def produce_slopes_one_simulation(paradigm, model_type, sigma, a, b, n_jobs):
     y = simulate_subject(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind, sub_num)
     return produce_slopes(y, 1)
     
-def produce_confidence_intervals(paradigm, model_type, sigma, a, b, n_jobs, n_simulations):
+def produce_confidence_intervals(paradigm, model_type, sigma, a, b, n_jobs, n_simulations, noise):
     """Produces a dictionary of whether a data feature increases, decreases, or does not change significantly for the average of n_simulations simulations
     for one parameter combinations"""
-    # print("done one simulation set")
+    print("done one parameter combination for one model")
 
     slopes = Parallel(n_jobs=n_jobs)(
-        delayed(produce_slopes_one_simulation)(paradigm, model_type, sigma, a, b, n_jobs)
+        delayed(produce_slopes_one_simulation)(paradigm, model_type, sigma, a, b, noise, n_jobs)
         for _ in range(n_simulations)
     )
     
@@ -132,7 +133,7 @@ def produce_confidence_intervals(paradigm, model_type, sigma, a, b, n_jobs, n_si
 #     }
 #     return key_variables
 
-def produce_model_key_variables(model, parameters, paradigm, experimental_results, n_simulations, n_jobs):
+def produce_model_key_variables(model, parameters, paradigm, experimental_results, n_simulations, n_jobs, noise):
     """Evaluate each param combo for one model and return comparison results"""
     param_grid = list(product(*parameters.values()))
     index_map = {
@@ -142,7 +143,8 @@ def produce_model_key_variables(model, parameters, paradigm, experimental_result
 
     def evaluate_combo(index, combo):
         sigma, a, b = combo
-        result_dict = produce_confidence_intervals(paradigm, model, sigma, a, b, n_simulations, n_jobs)
+        result_dict = produce_confidence_intervals(paradigm, model, sigma, a, b, n_jobs, n_simulations, noise)
+        #This is the thing that was changed!
         match = [1 if result_dict[k] == experimental_results[k] else 0 for k in result_dict]
         return index, match
 
@@ -170,12 +172,12 @@ def produce_model_key_variables(model, parameters, paradigm, experimental_result
         'parameters_of_max': parameters_of_max
     }
 
-def producing_fig_5(parameters, paradigm, n_simulations, n_jobs):
+def producing_fig_5(parameters, paradigm, n_simulations, n_jobs, noise):
     """Outputs the final figure as well as all the possible maximum results"""
     experimental_results = experimental_face_results if paradigm == 'face' else experimental_grating_results
     # fig_5_dict = {model: produce_model_key_variables(model, parameters, paradigm, experimental_results, n_simulations, n_jobs) for model in range(1, 13)}
     fig_5_dict = {
-        model: produce_model_key_variables(model, parameters, paradigm, experimental_results, n_simulations, n_jobs)
+        model: produce_model_key_variables(model, parameters, paradigm, experimental_results, n_simulations, n_jobs, noise)
         for model in range(1, 13)
     }
     fig_5_array = np.zeros((6, 12))
@@ -255,8 +257,9 @@ experimental_grating_results = {
 n_simulations = 50
 
 from pprint import pprint
+noise = 0.03
 
-results = producing_fig_5(actual_parameters, 'face', n_simulations, n_jobs)
+results = producing_fig_5(good_spread_parameters, 'grating', n_simulations, n_jobs, noise)
 
 with open("fig5_results.txt", "w") as f:
     from pprint import pformat
@@ -266,7 +269,7 @@ with open("fig5_results.txt", "w") as f:
 
 #Run overnight on n_simulations = 50
 #n_jobs = 3
-#actual_parameters
+#good_spread_parameters
 
 
 
