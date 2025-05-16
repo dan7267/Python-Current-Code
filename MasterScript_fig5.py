@@ -13,36 +13,42 @@ n_jobs = 3
 
 def simulate_subject(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, noise, ind, sub_num):
     """Produces the voxel pattern for one simulation for one parameter combination of one paradigm"""
-    all_pattern = []
-    # batch_size=4
     batch_size=3
+    T = len(j)
+    noisy_pattern = np.empty((sub_num, T, v))
     for i in range(0, sub_num, batch_size):
         current_batch_size = min(batch_size, sub_num - i)
         out = simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, current_batch_size)
         noisy_pattern = (
             out.transpose(0, 2, 1) + np.random.randn(current_batch_size, v, len(j)) * noise
         ).transpose(0, 2, 1)  # shape: (batch, time, voxel)
+    if paradigm == 'face':
+        # Build condition indices using np.arange
+        cond1_p1 = np.arange(0, 32, 4)
+        cond1_p2 = np.arange(1, 32, 4)
+        cond2_p1 = np.arange(2, 32, 4)
+        cond2_p2 = np.arange(3, 32, 4)
 
-        # Indexing
-        inds = {
-            'cond1_p1': np.arange(0, noisy_pattern.shape[1], 4),
-            'cond1_p2': np.arange(1, noisy_pattern.shape[1], 4),
-            'cond2_p1': np.arange(2, noisy_pattern.shape[1], 4),
-            'cond2_p2': np.arange(3, noisy_pattern.shape[1], 4),
-        }
-
+        # Stack condition slices
         pattern_split = np.stack([
-            noisy_pattern[:, inds['cond1_p1'], :],
-            noisy_pattern[:, inds['cond1_p2'], :],
-            noisy_pattern[:, inds['cond2_p1'], :],
-            noisy_pattern[:, inds['cond2_p2'], :]
-        ], axis=1)  # shape: (batch, 4, 8, voxel)
+            noisy_pattern[:, cond1_p1, :],
+            noisy_pattern[:, cond1_p2, :],
+            noisy_pattern[:, cond2_p1, :],
+            noisy_pattern[:, cond2_p2, :]
+        ], axis=1)  # shape: (sub_num, 4, 8, v)
 
-        reshaped = pattern_split.reshape(current_batch_size, len(j), v)  # shape: (batch, 32, voxel)
-        all_pattern.append(reshaped)
+        reshaped = pattern_split.reshape(sub_num, 32, v)  # shape: (sub_num, 32, v)
 
-    # Concatenate all batches → shape: (sub_num, 32, voxel)
-    return np.concatenate(all_pattern, axis=0)
+        return reshaped
+    elif paradigm == 'grating':
+        pattern_split = np.stack([
+            noisy_pattern[:, ind[0], :],
+            noisy_pattern[:, ind[2], :],
+            noisy_pattern[:, ind[3], :],
+            noisy_pattern[:, ind[5], :]
+        ], axis=1)
+        reshaped = pattern_split.reshape(sub_num, 32, v)
+        return reshaped
 
 def produce_slopes_one_simulation(paradigm, model_type, sigma, a, b, noise, n_jobs):
     """Produces the slope of each data feature for one parameter combination for one simulation"""
@@ -256,14 +262,33 @@ experimental_grating_results = {
 
 n_simulations = 50
 
-from pprint import pprint
-noise = 0.03
+# from pprint import pprint
+# noise = 0.03
+
+# results = producing_fig_5(good_spread_parameters, 'grating', n_simulations, n_jobs, noise)
+
+# with open("fig5_grating_good_spread2.txt", "w") as f:
+#     from pprint import pformat
+#     f.write(pformat(results))
+
+
+
+noise = 0.3
+
+results = producing_fig_5(good_spread_parameters, 'face', n_simulations, n_jobs, noise)
+
+with open("fig5_face_good_spread_large_noise.txt", "w") as f:
+    from pprint import pformat
+    f.write(pformat(results))
+
+noise = 0.003
 
 results = producing_fig_5(good_spread_parameters, 'grating', n_simulations, n_jobs, noise)
 
-with open("fig5_results.txt", "w") as f:
+with open("fig5_grating_good_spread_small_noise.txt", "w") as f:
     from pprint import pformat
     f.write(pformat(results))
+
 
 # producing_fig_5(actual_parameters, 'face', n_simulations, n_jobs)
 
