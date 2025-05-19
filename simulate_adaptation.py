@@ -4,7 +4,7 @@ from paradigm_setting import paradigm_setting
 
 np.set_printoptions(threshold=np.inf)
 
-def simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_after, paradigm, N, sub_num):
+def simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, k, model_type, reset_after, paradigm, N, sub_num):
     """
     Parameters
     ----------
@@ -130,7 +130,7 @@ def simulate_adaptation(v, X, j, cond1, cond2, a, b, sigma, model_type, reset_af
 
     activity = act1 * cond1_mask + act2 * cond2_mask
     np.mean(activity, axis=3, out=pattern)
-
+    pattern = pattern * k
     return pattern
 
 def gaussian(x, u, sigma, paradigm):

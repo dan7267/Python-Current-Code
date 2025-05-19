@@ -2,7 +2,7 @@ import numpy as np
 import scipy as sp
 from paradigm_setting import paradigm_setting
 from simulate_adaptation import simulate_adaptation
-from repeffects_fig4 import produce_slopes
+from repeffects_fig4_ZP import produce_slopes
 import sys
 from ExperimentalData import create_pattern
 from itertools import product
@@ -78,10 +78,20 @@ def produce_confidence_intervals(paradigm, model_type, sigma, a, b, k, n_jobs, n
         delayed(produce_slopes_one_simulation)(paradigm, model_type, sigma, a, b, k, noise, n_jobs)
         for _ in range(n_simulations)
     )
+    all_slope_vectors = np.stack([s[0] for s in slopes])
+    cppm_vals = np.array([s[1] for s in slopes])  # (n_simulations,)
+    cpzp_vals = np.array([s[2] for s in slopes])  # (n_simulations,)
+    cppm, cpzp = np.mean(cppm_vals), np.mean(cpzp_vals)
+    print("a: ", a)
+    print("b: ", b)
+    print("sigma: ", sigma)
+    print("k: ", k)
+    print("cppm: ", cppm)
+    print("cpzp: ", cpzp)
     
     #Finding overall confidence interval for all simulations
-    slopes = np.array(slopes)
-    means, stds = slopes.mean(axis=0), slopes.std(axis=0)
+    slopes = np.array(all_slope_vectors)
+    means, stds = all_slope_vectors.mean(axis=0), all_slope_vectors.std(axis=0)
     sems = stds / np.sqrt(n_simulations)
     t_critical = sp.stats.t.ppf(0.995, df=n_simulations-1)
     mega_sci = np.column_stack([means - t_critical * sems, means + t_critical * sems])
@@ -184,9 +194,9 @@ def producing_fig_5(parameters, paradigm, n_simulations, n_jobs, noise):
     # fig_5_dict = {model: produce_model_key_variables(model, parameters, paradigm, experimental_results, n_simulations, n_jobs) for model in range(1, 13)}
     fig_5_dict = {
         model: produce_model_key_variables(model, parameters, paradigm, experimental_results, n_simulations, n_jobs, noise)
-        for model in range(1, 13)
+        for model in range(2, 3)
     }
-    fig_5_array = np.zeros((6, 12))
+    fig_5_array = np.zeros((6, 1))
     fig_5_sets = []
     for model, model_data in fig_5_dict.items():
         fig_5_sets.append(model_data['max_same'])
@@ -240,6 +250,9 @@ models = {
     'local attraction' : 11,
     'remote attraction' : 12
 }
+model_2 = {
+    'local scaling' : 2
+}
 
 paradigms = ['face', 'grating']        
 
@@ -278,7 +291,7 @@ n_simulations = 50
 
 noise = 0.1
 
-results = producing_fig_5(good_spread_parameters, 'face', n_simulations, n_jobs, noise)
+results = producing_fig_5(parameters, 'face', n_simulations, n_jobs, noise)
 
 # with open("fig5_face_good_spread_large_noise.txt", "w") as f:
 #     from pprint import pformat
